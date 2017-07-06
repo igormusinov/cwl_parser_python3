@@ -1,7 +1,6 @@
 import abc
 import copy
 import errno
-import functools
 import hashlib
 import json
 import logging
@@ -9,44 +8,32 @@ import os
 import shutil
 import stat
 import tempfile
-import urlparse
+from urllib.parse import urlparse, urljoin
 import uuid
 from collections import Iterable
-from typing import (Any, AnyStr, Callable, Dict, Generator, List, Text, Tuple,
-                    Union, cast)
-
-from pkg_resources import resource_stream
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
+import functools
 
 import avro.schema
 import schema_salad.schema
 import schema_salad.validate as validate
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from pkg_resources import resource_stream
+from rdflib import Graph
+from rdflib import URIRef
+from rdflib.namespace import RDFS, OWL
+from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.sourceline import SourceLine
+from typing import (Any, AnyStr, Callable, cast, Dict, List, Generator, Text,
+                    Tuple, Union)
 
-from .builder import Builder
-from .errors import UnsupportedRequirement, WorkflowException
-from .pathmapper import (PathMapper, adjustDirObjs, get_listing,
-                         normalizeFilesDirs, visit_class)
+from .builder import Builder, adjustFileObjs
+from .pathmapper import adjustDirObjs, get_listing
+from .errors import WorkflowException, UnsupportedRequirement
+from .pathmapper import PathMapper, normalizeFilesDirs
 from .stdfsaccess import StdFsAccess
 from .utils import aslist, get_feature
 
-
-class LogAsDebugFilter(logging.Filter):
-    def __init__(self, name, parent):  # type: (str, logging.Logger) -> None
-        super(LogAsDebugFilter, self).__init__(name)
-        self.parent = parent
-
-    def filter(self, record):
-        return self.parent.isEnabledFor(logging.DEBUG)
-
-
 _logger = logging.getLogger("cwltool")
-_logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
-_logger_validation_warnings.setLevel(_logger.getEffectiveLevel())
-_logger_validation_warnings.addFilter(LogAsDebugFilter("cwltool.validation_warnings", _logger))
 
 supportedProcessRequirements = ["DockerRequirement",
                                 "SchemaDefRequirement",
@@ -59,8 +46,7 @@ supportedProcessRequirements = ["DockerRequirement",
                                 "StepInputExpressionRequirement",
                                 "ResourceRequirement",
                                 "InitialWorkDirRequirement",
-                                "http://commonwl.org/cwltool#LoadListingRequirement",
-                                "http://commonwl.org/cwltool#InplaceUpdateRequirement"]
+                                "http://commonwl.org/cwltool#LoadListingRequirement"]
 
 cwl_files = (
     "Workflow.yml",
@@ -156,7 +142,7 @@ def get_schema(version):
 
 def shortname(inputid):
     # type: (Text) -> Text
-    d = urlparse.urlparse(inputid)
+    d = urlparse(inputid)
     if d.fragment:
         return d.fragment.split(u"/")[-1]
     else:
@@ -203,7 +189,7 @@ def stageFiles(pm, stageFunc, ignoreWritable=False):
             continue
         if not os.path.exists(os.path.dirname(p.target)):
             os.makedirs(os.path.dirname(p.target), 0o0755)
-        if p.type in ("File", "Directory") and (p.resolved.startswith("/") or p.resolved.startswith("file:///")):
+        if p.type in ("File", "Directory") and p.resolved.startswith("/"):
             stageFunc(p.resolved, p.target)
         elif p.type == "Directory" and not os.path.exists(p.target) and p.resolved.startswith("_:"):
             os.makedirs(p.target, 0o0755)
@@ -243,22 +229,12 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
     def moveIt(src, dst):
         if action == "move":
             for a in output_dirs:
-                if src.startswith(a+"/"):
+                if src.startswith(a):
                     _logger.debug("Moving %s to %s", src, dst)
-                    if os.path.isdir(src) and os.path.isdir(dst):
-                        # merge directories
-                        for root, dirs, files in os.walk(src):
-                            for f in dirs+files:
-                                moveIt(os.path.join(root, f), os.path.join(dst, f))
-                    else:
-                        shutil.move(src, dst)
+                    shutil.move(src, dst)
                     return
-        if src != dst:
-            _logger.debug("Copying %s to %s", src, dst)
-            if os.path.isdir(src):
-                shutil.copytree(src, dst)
-            else:
-                shutil.copy(src, dst)
+        _logger.debug("Copying %s to %s", src, dst)
+        shutil.copy(src, dst)
 
     outfiles = []  # type: List[Dict[Text, Any]]
     collectFilesAndDirs(outputObj, outfiles)
@@ -269,32 +245,12 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
         f["location"] = file_uri(pm.mapper(f["location"])[1])
         if "contents" in f:
             del f["contents"]
+        if f["class"] == "File":
+            compute_checksums(fs_access, f)
         return f
 
-    visit_class(outputObj, ("File", "Directory"), _check_adjust)
-
-    visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
-
-    # If there are symlinks to intermediate output directories, we want to move
-    # the real files into the final output location.  If a file is linked more than once,
-    # make an internal relative symlink.
-    if action == "move":
-        relinked = {}  # type: Dict[Text, Text]
-        for root, dirs, files in os.walk(outdir):
-            for f in dirs+files:
-                path = os.path.join(root, f)
-                rp = os.path.realpath(path)
-                if path != rp:
-                    if rp in relinked:
-                        os.unlink(path)
-                        os.symlink(os.path.relpath(relinked[rp], path), path)
-                    else:
-                        for od in output_dirs:
-                            if rp.startswith(od+"/"):
-                                os.unlink(path)
-                                os.rename(rp, path)
-                                relinked[rp] = path
-                                break
+    adjustFileObjs(outputObj, _check_adjust)
+    adjustDirObjs(outputObj, _check_adjust)
 
     return outputObj
 
@@ -344,8 +300,6 @@ def formatSubclassOf(fmt, cls, ontology, visited):
 def checkFormat(actualFile, inputFormats, ontology):
     # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
     for af in aslist(actualFile):
-        if not af:
-            continue
         if "format" not in af:
             raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
@@ -386,6 +340,7 @@ def avroize_type(field_type, name_prefix=""):
         if field_type["type"] == "array":
             avroize_type(field_type["items"], name_prefix)
     return field_type
+
 
 class Process(object):
     __metaclass__ = abc.ABCMeta
@@ -516,8 +471,7 @@ class Process(object):
         try:
             fillInDefaults(self.tool[u"inputs"], builder.job)
             normalizeFilesDirs(builder.job)
-            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job,
-                                 strict=False, logger=_logger_validation_warnings)
+            validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
         except (validate.ValidationException, WorkflowException) as e:
             raise WorkflowException("Invalid job input record:\n" + Text(e))
 
@@ -530,9 +484,13 @@ class Process(object):
         builder.resources = {}
         builder.timeout = kwargs.get("eval_timeout")
         builder.debug = kwargs.get("debug")
-        builder.mutation_manager = kwargs.get("mutation_manager")
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
+
+        if dockerReq and is_req and not kwargs.get("use_container"):
+            raise WorkflowException(
+                "Document has DockerRequirement under 'requirements' but use_container is false.  DockerRequirement must be under 'hints' or use_container must be true.")
+
         builder.make_fs_access = kwargs.get("make_fs_access") or StdFsAccess
         builder.fs_access = builder.make_fs_access(kwargs["basedir"])
 
@@ -740,7 +698,7 @@ def mergedirs(listing):
     return r
 
 
-def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urlparse.urljoin):
+def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urljoin):
     # type: (Text, Any, Set[Text], Set[Text], Callable[[Text, Text], Any], Callable[[Text, Text], Text]) -> List[Dict[Text, Text]]
     r = []  # type: List[Dict[Text, Text]]
     deps = None  # type: Dict[Text, Any]
