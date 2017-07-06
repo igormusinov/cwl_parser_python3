@@ -25,11 +25,11 @@ def find_run(d, loadref, runs):  # type: (Any, Callable[[Text, Text], Union[Dict
         for s in d:
             find_run(s, loadref, runs)
     elif isinstance(d, dict):
-        if "run" in d and isinstance(d["run"], str):
+        if "run" in d and isinstance(d["run"], (str, unicode)):
             if d["run"] not in runs:
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
-        for s in list(d.values()):
+        for s in d.values():
             find_run(s, loadref, runs)
 
 
@@ -39,9 +39,9 @@ def find_ids(d, ids):  # type: (Any, Set[Text]) -> None
             find_ids(s, ids)
     elif isinstance(d, dict):
         for i in ("id", "name"):
-            if i in d and isinstance(d[i], str):
+            if i in d and isinstance(d[i], (str, unicode)):
                 ids.add(d[i])
-        for s in list(d.values()):
+        for s in d.values():
             find_ids(s, ids)
 
 
@@ -49,7 +49,7 @@ def replace_refs(d, rewrite, stem, newstem):
     # type: (Any, Dict[Text, Text], Text, Text) -> None
     if isinstance(d, list):
         for s, v in enumerate(d):
-            if isinstance(v, str):
+            if isinstance(v, (str, unicode)):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -57,8 +57,8 @@ def replace_refs(d, rewrite, stem, newstem):
             else:
                 replace_refs(v, rewrite, stem, newstem)
     elif isinstance(d, dict):
-        for s, v in list(d.items()):
-            if isinstance(v, str):
+        for s, v in d.items():
+            if isinstance(v, (str, unicode)):
                 if v in rewrite:
                     d[s] = rewrite[v]
                 elif v.startswith(stem):
@@ -82,7 +82,7 @@ def import_embed(d, seen):
                     seen.add(this)
                     break
 
-        for v in list(d.values()):
+        for v in d.values():
             import_embed(v, seen)
 
 

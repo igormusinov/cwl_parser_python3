@@ -73,9 +73,9 @@ def new_js_proc():
 
     if nodejs is None:
         raise JavascriptException(
-            "cwltool requires Node.js engine to evaluate Javascript "
+            u"cwltool requires Node.js engine to evaluate Javascript "
             "expressions, but couldn't find it.  Tried %s, docker run "
-            "node:slim" % ", ".join(trynodes))
+            "node:slim" % u", ".join(trynodes))
 
     return nodejs
 
@@ -87,8 +87,8 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
 
     nodejs = localdata.proc
 
-    fn = "\"use strict\";\n%s\n(function()%s)()" %\
-         (jslib, js if isinstance(js, str) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
+    fn = u"\"use strict\";\n%s\n(function()%s)()" %\
+         (jslib, js if isinstance(js, basestring) and len(js) > 1 and js[0] == '{' else ("{return (%s);}" % js))
 
     killed = []
 
@@ -144,7 +144,7 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
         if len(lines) > maxlines:
             ofs = len(lines) - maxlines
             lines = lines[-maxlines:]
-        return "\n".join("%02i %s" % (i + ofs + 1, b) for i, b in enumerate(lines))
+        return u"\n".join(u"%02i %s" % (i + ofs + 1, b) for i, b in enumerate(lines))
 
     def stdfmt(data):  # type: (unicode) -> unicode
         if "\n" in data:
@@ -154,19 +154,19 @@ def execjs(js, jslib, timeout=None, debug=False):  # type: (Union[Mapping, Text]
     nodejs.poll()
 
     if debug:
-        info = "returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
+        info = u"returncode was: %s\nscript was:\n%s\nstdout was: %s\nstderr was: %s\n" %\
                (nodejs.returncode, fn_linenum(), stdfmt(stdoutdata), stdfmt(stderrdata))
     else:
         info = stdfmt(stderrdata)
 
     if nodejs.poll() not in (None, 0):
         if killed:
-            raise JavascriptException("Long-running script killed after %s seconds: %s" % (timeout, info))
+            raise JavascriptException(u"Long-running script killed after %s seconds: %s" % (timeout, info))
         else:
             raise JavascriptException(info)
     else:
         try:
             return json.loads(stdoutdata)
         except ValueError as e:
-            raise JavascriptException("%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
+            raise JavascriptException(u"%s\nscript was:\n%s\nstdout was: '%s'\nstderr was: '%s'\n" %
                                       (e, fn_linenum(), stdoutdata, stderrdata))

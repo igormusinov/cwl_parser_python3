@@ -14,7 +14,7 @@ _logger = logging.getLogger("cwltool")
 
 def jshead(engineConfig, rootvars):
     # type: (List[Text], Dict[Text, Any]) -> Text
-    return "\n".join(engineConfig + ["var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in list(rootvars.items())])
+    return u"\n".join(engineConfig + [u"var %s = %s;" % (k, json.dumps(v, indent=4)) for k, v in rootvars.items()])
 
 
 seg_symbol = r"""\w+"""
@@ -193,13 +193,13 @@ def do_eval(ex, jobinput, requirements, outdir, tmpdir, resources,
     runtime["outdir"] = outdir
 
     rootvars = {
-        "inputs": jobinput,
-        "self": context,
-        "runtime": runtime}
+        u"inputs": jobinput,
+        u"self": context,
+        u"runtime": runtime}
 
     if isinstance(ex, (str, Text)):
         fullJS = False
-        jslib = ""
+        jslib = u""
         for r in reversed(requirements):
             if r["class"] == "InlineJavascriptRequirement":
                 fullJS = True

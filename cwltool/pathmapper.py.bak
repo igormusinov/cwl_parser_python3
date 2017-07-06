@@ -112,9 +112,9 @@ def get_listing(fs_access, rec, recursive=True):
         parse = urllib.parse.urlparse(ld)
         bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
-            ent = {"class": "Directory",
-                   "location": ld,
-                   "basename": bn}
+            ent = {u"class": u"Directory",
+                   u"location": ld,
+                   u"basename": bn}
             if recursive:
                 get_listing(fs_access, ent, recursive)
             listing.append(ent)
@@ -225,21 +225,21 @@ class PathMapper(object):
             self.visit(fob, stagedir, basedir, staged=True)
 
     def mapper(self, src):  # type: (Text) -> MapperEnt
-        if "#" in src:
-            i = src.index("#")
+        if u"#" in src:
+            i = src.index(u"#")
             p = self._pathmap[src[:i]]
             return MapperEnt(p.resolved, p.target + src[i:], p.type, p.staged)
         else:
             return self._pathmap[src]
 
     def files(self):  # type: () -> List[Text]
-        return list(self._pathmap.keys())
+        return self._pathmap.keys()
 
     def items(self):  # type: () -> List[Tuple[Text, MapperEnt]]
-        return list(self._pathmap.items())
+        return self._pathmap.items()
 
     def reversemap(self, target):  # type: (Text) -> Tuple[Text, Text]
-        for k, v in list(self._pathmap.items()):
+        for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
         return None

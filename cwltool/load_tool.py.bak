@@ -15,7 +15,7 @@ from schema_salad.sourceline import cmap
 from schema_salad.validate import ValidationException
 from typing import Any, Callable, cast, Dict, Text, Tuple, Union
 #from six.moves import urllib
-import urllib.request, urllib.parse, urllib.error
+import urllib
 from six import itervalues, string_types
 
 from . import process
@@ -208,7 +208,7 @@ def validate_document(document_loader,  # type: Loader
             processobj, document_loader, fileuri, enable_dev, metadata)))
 
     if jobobj:
-        metadata["cwl:defaults"] = jobobj
+        metadata[u"cwl:defaults"] = jobobj
 
     return document_loader, avsc_names, processobj, metadata, uri
 
@@ -229,7 +229,7 @@ def make_tool(document_loader,  # type: Loader
             processobj = resolveduri[0]
         else:
             raise WorkflowException(
-                "Tool file contains graph of multiple objects, must specify "
+                u"Tool file contains graph of multiple objects, must specify "
                 "one of #%s" % ", #".join(
                     urllib.parse.urldefrag(i["id"])[1] for i in resolveduri
                     if "id" in i))
