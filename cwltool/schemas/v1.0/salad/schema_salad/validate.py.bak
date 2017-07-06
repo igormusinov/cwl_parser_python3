@@ -1,7 +1,7 @@
 import pprint
 import avro.schema
 import sys
-import urllib.parse
+import urlparse
 from typing import Any
 
 class ValidationException(Exception):
@@ -73,7 +73,7 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
         else:
             raise ValidationException("the value `%s` is not boolean" % vpformat(datum))
     elif schema_type == 'string':
-        if isinstance(datum, str):
+        if isinstance(datum, basestring):
             return True
         elif isinstance(datum, bytes):
             datum = datum.decode("utf-8")
@@ -86,19 +86,19 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
         else:
             raise ValidationException("the value `%s` is not bytes" % vpformat(datum))
     elif schema_type == 'int':
-        if ((isinstance(datum, int) or isinstance(datum, int))
+        if ((isinstance(datum, int) or isinstance(datum, long))
             and INT_MIN_VALUE <= datum <= INT_MAX_VALUE):
             return True
         else:
             raise ValidationException("`%s` is not int" % vpformat(datum))
     elif schema_type == 'long':
-        if ((isinstance(datum, int) or isinstance(datum, int))
+        if ((isinstance(datum, int) or isinstance(datum, long))
             and LONG_MIN_VALUE <= datum <= LONG_MAX_VALUE):
             return True
         else:
             raise ValidationException("the value `%s` is not long" % vpformat(datum))
     elif schema_type in ['float', 'double']:
-        if (isinstance(datum, int) or isinstance(datum, int)
+        if (isinstance(datum, int) or isinstance(datum, long)
             or isinstance(datum, float)):
             return True
         else:
@@ -130,8 +130,8 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
             raise ValidationException("the value `%s` is not a list, expected list of %s" % (vpformat(datum), friendly(expected_schema.items)))
     elif isinstance(expected_schema, avro.schema.MapSchema):
         if (isinstance(datum, dict) and
-            False not in [isinstance(k, str) for k in list(datum.keys())] and
-            False not in [validate(expected_schema.values, v, strict=strict) for v in list(datum.values())]):
+            False not in [isinstance(k, basestring) for k in datum.keys()] and
+            False not in [validate(expected_schema.values, v, strict=strict) for v in datum.values()]):
             return True
         else:
             raise ValidationException("`%s` is not a valid map value, expected\n %s" % (vpformat(datum), vpformat(expected_schema.values)))
@@ -176,7 +176,7 @@ def validate_ex(expected_schema, datum, identifiers=None, strict=False,
                         found = True
                 if not found:
                     if d not in identifiers and d not in foreign_properties and d[0] not in ("@", "$"):
-                        split = urllib.parse.urlsplit(d)
+                        split = urlparse.urlsplit(d)
                         if split.scheme:
                             errors.append("could not validate extension field `%s` because it is not recognized and strict is True.  Did you include a $schemas section?" % (d))
                         else:

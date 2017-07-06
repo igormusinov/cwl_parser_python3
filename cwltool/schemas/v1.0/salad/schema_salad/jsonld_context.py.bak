@@ -16,7 +16,7 @@ import rdflib
 from rdflib import Graph, URIRef
 import rdflib.namespace
 from rdflib.namespace import RDF, RDFS
-import urllib.parse
+import urlparse
 import logging
 from .aslist import aslist
 from typing import Any, cast, Dict, Iterable, Tuple, Union
@@ -27,16 +27,16 @@ _logger = logging.getLogger("salad")
 
 def pred(datatype, field, name, context, defaultBase, namespaces):
     # type: (Dict[str, Union[Dict, str]], Dict, str, Loader.ContextType, str, Dict[str, rdflib.namespace.Namespace]) -> Union[Dict, str]
-    split = urllib.parse.urlsplit(name)
+    split = urlparse.urlsplit(name)
 
     vee = None  # type: Union[str, unicode]
 
     if split.scheme:
         vee = name
-        (ns, ln) = rdflib.namespace.split_uri(str(vee))
+        (ns, ln) = rdflib.namespace.split_uri(unicode(vee))
         name = ln
         if ns[0:-1] in namespaces:
-            vee = str(namespaces[ns[0:-1]][ln])
+            vee = unicode(namespaces[ns[0:-1]][ln])
         _logger.debug("name, v %s %s", name, vee)
 
     v = None  # type: Any
@@ -44,7 +44,7 @@ def pred(datatype, field, name, context, defaultBase, namespaces):
     if field and "jsonldPredicate" in field:
         if isinstance(field["jsonldPredicate"], dict):
             v = {}
-            for k, val in list(field["jsonldPredicate"].items()):
+            for k, val in field["jsonldPredicate"].items():
                 v[("@" + k[1:] if k.startswith("_") else k)] = val
         else:
             v = field["jsonldPredicate"]
@@ -92,11 +92,11 @@ def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
         classnode = URIRef(recordname)
         g.add((classnode, RDF.type, RDFS.Class))
 
-        split = urllib.parse.urlsplit(recordname)
+        split = urlparse.urlsplit(recordname)
         if "jsonldPrefix" in t:
             predicate = "%s:%s" % (t["jsonldPrefix"], recordname)
         elif split.scheme:
-            (ns, ln) = rdflib.namespace.split_uri(str(recordname))
+            (ns, ln) = rdflib.namespace.split_uri(unicode(recordname))
             predicate = recordname
             recordname = ln
         else:
@@ -120,13 +120,13 @@ def process_type(t, g, context, defaultBase, namespaces, defaultPrefix):
 
             v = pred(t, i, fieldname, context, defaultPrefix, namespaces)
 
-            if isinstance(v, str):
+            if isinstance(v, basestring):
                 v = v if v[0] != "@" else None
             else:
                 v = v["_@id"] if v.get("_@id", "@")[0] != "@" else None
 
             if v:
-                (ns, ln) = rdflib.namespace.split_uri(str(v))
+                (ns, ln) = rdflib.namespace.split_uri(unicode(v))
                 if ns[0:-1] in namespaces:
                     propnode = namespaces[ns[0:-1]][ln]
                 else:
@@ -158,7 +158,7 @@ def salad_to_jsonld_context(j, schema_ctx):
     g = Graph()
     defaultPrefix = ""
 
-    for k, v in list(schema_ctx.items()):
+    for k, v in schema_ctx.items():
         context[k] = v
         namespaces[k] = rdflib.namespace.Namespace(v)
 
@@ -168,7 +168,7 @@ def salad_to_jsonld_context(j, schema_ctx):
     else:
         defaultBase = ""
 
-    for k, v in list(namespaces.items()):
+    for k, v in namespaces.items():
         g.bind(k, v)
 
     for t in j:
@@ -182,7 +182,7 @@ def fix_jsonld_ids(obj, ids):
         for i in ids:
             if i in obj:
                 obj["@id"] = obj[i]
-        for v in list(obj.values()):
+        for v in obj.values():
             fix_jsonld_ids(v, ids)
     if isinstance(obj, list):
         for entry in obj:
@@ -192,17 +192,17 @@ def makerdf(workflow, wf, ctx):
     # type: (Union[str, unicode], Union[List[Dict[unicode, Any]], Dict[unicode, Any]], Loader.ContextType) -> Graph
     prefixes = {}
     idfields = []
-    for k,v in ctx.items():
+    for k,v in ctx.iteritems():
         if isinstance(v, dict):
             url = v["@id"]
         else:
             url = v
         if url == "@id":
             idfields.append(k)
-        doc_url, frg = urllib.parse.urldefrag(url)
+        doc_url, frg = urlparse.urldefrag(url)
         if "/" in frg:
             p, _ = frg.split("/")
-            prefixes[p] = "%s#%s/" % (doc_url, p)
+            prefixes[p] = u"%s#%s/" % (doc_url, p)
 
     if isinstance(wf, list):
         wf = {
@@ -220,7 +220,7 @@ def makerdf(workflow, wf, ctx):
     for s,p,o in g.triples((None, URIRef("@id"), None)):
         g.remove((s, p, o))
 
-    for k2,v2 in prefixes.items():
+    for k2,v2 in prefixes.iteritems():
         g.namespace_manager.bind(k2, v2)
 
     return g

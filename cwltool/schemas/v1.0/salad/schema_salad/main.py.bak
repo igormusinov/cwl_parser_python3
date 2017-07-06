@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import argparse
 import logging
 import sys
@@ -10,7 +10,7 @@ import json
 from rdflib import Graph, plugin
 from rdflib.serializer import Serializer
 import os
-import urllib.parse
+import urlparse
 
 from .ref_resolver import Loader
 from . import validate
@@ -94,7 +94,7 @@ def main(argsl=None):  # type: (List[str]) -> int
     # Load schema document and resolve refs
 
     schema_uri = args.schema
-    if not urllib.parse.urlparse(schema_uri)[0]:
+    if not urlparse.urlparse(schema_uri)[0]:
         schema_uri = "file://" + os.path.abspath(schema_uri)
     schema_raw_doc = metaschema_loader.fetch(schema_uri)
 
@@ -104,8 +104,8 @@ def main(argsl=None):  # type: (List[str]) -> int
     except (validate.ValidationException) as e:
         _logger.error("Schema `%s` failed link checking:\n%s",
                       args.schema, e, exc_info=(e if args.debug else False))
-        _logger.debug("Index is %s", list(metaschema_loader.idx.keys()))
-        _logger.debug("Vocabulary is %s", list(metaschema_loader.vocab.keys()))
+        _logger.debug("Index is %s", metaschema_loader.idx.keys())
+        _logger.debug("Vocabulary is %s", metaschema_loader.vocab.keys())
         return 1
 
     # Optionally print the schema after ref resolution
@@ -114,7 +114,7 @@ def main(argsl=None):  # type: (List[str]) -> int
         return 0
 
     if not args.document and args.print_index:
-        print(json.dumps(list(metaschema_loader.idx.keys()), indent=4))
+        print(json.dumps(metaschema_loader.idx.keys(), indent=4))
         return 0
 
     # Validate the schema document against the metaschema
@@ -181,7 +181,7 @@ def main(argsl=None):  # type: (List[str]) -> int
     # Load target document and resolve refs
     try:
         uri = args.document
-        if not urllib.parse.urlparse(uri)[0]:
+        if not urlparse.urlparse(uri)[0]:
             doc = "file://" + os.path.abspath(uri)
         document, doc_metadata = document_loader.resolve_ref(uri)
     except (validate.ValidationException, RuntimeError) as e:
@@ -195,7 +195,7 @@ def main(argsl=None):  # type: (List[str]) -> int
         return 0
 
     if args.print_index:
-        print(json.dumps(list(document_loader.idx.keys()), indent=4))
+        print(json.dumps(document_loader.idx.keys(), indent=4))
         return 0
 
     # Validate the schema document against the metaschema

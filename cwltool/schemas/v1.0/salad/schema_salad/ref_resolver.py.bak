@@ -5,7 +5,7 @@ import hashlib
 import logging
 import collections
 import requests
-import urllib.parse
+import urlparse
 import re
 import copy
 import ruamel.yaml as yaml
@@ -15,7 +15,7 @@ except ImportError:
     from ruamel.yaml import SafeLoader  # type: ignore
 from . import validate
 import pprint
-from io import StringIO
+from StringIO import StringIO
 from .aslist import aslist
 from .flatten import flatten
 import rdflib
@@ -29,7 +29,7 @@ _logger = logging.getLogger("salad")
 
 class NormDict(dict):
 
-    def __init__(self, normalize=str):  # type: (type) -> None
+    def __init__(self, normalize=unicode):  # type: (type) -> None
         super(NormDict, self).__init__()
         self.normalize = normalize
 
@@ -69,13 +69,13 @@ def SubLoader(loader):  # type: (Loader) -> Loader
 
 class Loader(object):
 
-    ContextType = Dict[str, Union[Dict, str, Iterable[str]]]
-    DocumentType = TypeVar('DocumentType', List, Dict[str, Any])
+    ContextType = Dict[unicode, Union[Dict, unicode, Iterable[unicode]]]
+    DocumentType = TypeVar('DocumentType', List, Dict[unicode, Any])
 
     def __init__(self, ctx, schemagraph=None, foreign_properties=None,
                  idx=None, cache=None):
         # type: (Loader.ContextType, rdflib.Graph, Set[unicode], Dict[unicode, Union[List, Dict[unicode, Any], unicode]], Dict[unicode, Any]) -> None
-        normalize = lambda url: urllib.parse.urlsplit(url).geturl()
+        normalize = lambda url: urlparse.urlsplit(url).geturl()
         if idx is not None:
             self.idx = idx
         else:
@@ -114,35 +114,35 @@ class Loader(object):
 
     def expand_url(self, url, base_url, scoped_id=False, vocab_term=False, scoped_ref=None):
         # type: (unicode, unicode, bool, bool, int) -> unicode
-        if url in ("@id", "@type"):
+        if url in (u"@id", u"@type"):
             return url
 
         if vocab_term and url in self.vocab:
             return url
 
-        if self.vocab and ":" in url:
-            prefix = url.split(":")[0]
+        if self.vocab and u":" in url:
+            prefix = url.split(u":")[0]
             if prefix in self.vocab:
                 url = self.vocab[prefix] + url[len(prefix) + 1:]
 
-        split = urllib.parse.urlsplit(url)
+        split = urlparse.urlsplit(url)
 
-        if split.scheme or url.startswith("$(") or url.startswith("${"):
+        if split.scheme or url.startswith(u"$(") or url.startswith(u"${"):
             pass
         elif scoped_id and not split.fragment:
-            splitbase = urllib.parse.urlsplit(base_url)
-            frg = ""
+            splitbase = urlparse.urlsplit(base_url)
+            frg = u""
             if splitbase.fragment:
-                frg = splitbase.fragment + "/" + split.path
+                frg = splitbase.fragment + u"/" + split.path
             else:
                 frg = split.path
             pt = splitbase.path if splitbase.path else "/"
-            url = urllib.parse.urlunsplit(
+            url = urlparse.urlunsplit(
                 (splitbase.scheme, splitbase.netloc, pt, splitbase.query, frg))
         elif scoped_ref is not None and not split.fragment:
             pass
         else:
-            url = urllib.parse.urljoin(base_url, url)
+            url = urlparse.urljoin(base_url, url)
 
         if vocab_term and url in self.rvocab:
             return self.rvocab[url]
@@ -151,14 +151,14 @@ class Loader(object):
 
     def _add_properties(self, s):  # type: (unicode) -> None
         for _, _, rng in self.graph.triples((s, RDFS.range, None)):
-            literal = ((str(rng).startswith(
-                "http://www.w3.org/2001/XMLSchema#") and
-                not str(rng) == "http://www.w3.org/2001/XMLSchema#anyURI")
-                or str(rng) ==
-                "http://www.w3.org/2000/01/rdf-schema#Literal")
+            literal = ((unicode(rng).startswith(
+                u"http://www.w3.org/2001/XMLSchema#") and
+                not unicode(rng) == u"http://www.w3.org/2001/XMLSchema#anyURI")
+                or unicode(rng) ==
+                u"http://www.w3.org/2000/01/rdf-schema#Literal")
             if not literal:
-                self.url_fields.add(str(s))
-        self.foreign_properties.add(str(s))
+                self.url_fields.add(unicode(s))
+        self.foreign_properties.add(unicode(s))
 
     def add_namespaces(self, ns):  # type: (Dict[unicode, unicode]) -> None
         self.vocab.update(ns)
@@ -168,7 +168,7 @@ class Loader(object):
         for sch in aslist(ns):
             for fmt in ['xml', 'turtle', 'rdfa']:
                 try:
-                    self.graph.parse(urllib.parse.urljoin(base_url, sch),
+                    self.graph.parse(urlparse.urljoin(base_url, sch),
                                      format=fmt)
                     break
                 except xml.sax.SAXParseException:  # type: ignore
@@ -189,7 +189,7 @@ class Loader(object):
             self._add_properties(s)
 
         for s, _, _ in self.graph.triples((None, None, None)):
-            self.idx[str(s)] = None
+            self.idx[unicode(s)] = None
 
     def add_context(self, newcontext, baseuri=""):
         # type: (Loader.ContextType, unicode) -> None
@@ -210,43 +210,43 @@ class Loader(object):
         self.rvocab = {}
         self.type_dsl_fields = set()
 
-        self.ctx.update(_copy_dict_without_key(newcontext, "@context"))
+        self.ctx.update(_copy_dict_without_key(newcontext, u"@context"))
 
         _logger.debug("ctx is %s", self.ctx)
 
-        for key, value in list(self.ctx.items()):
-            if value == "@id":
+        for key, value in self.ctx.items():
+            if value == u"@id":
                 self.identifiers.add(key)
                 self.identity_links.add(key)
-            elif isinstance(value, dict) and value.get("@type") == "@id":
+            elif isinstance(value, dict) and value.get(u"@type") == u"@id":
                 self.url_fields.add(key)
-                if "refScope" in value:
-                    self.scoped_ref_fields[key] = value["refScope"]
-                if value.get("identity", False):
+                if u"refScope" in value:
+                    self.scoped_ref_fields[key] = value[u"refScope"]
+                if value.get(u"identity", False):
                     self.identity_links.add(key)
-            elif isinstance(value, dict) and value.get("@type") == "@vocab":
+            elif isinstance(value, dict) and value.get(u"@type") == u"@vocab":
                 self.url_fields.add(key)
                 self.vocab_fields.add(key)
-                if "refScope" in value:
-                    self.scoped_ref_fields[key] = value["refScope"]
-                if value.get("typeDSL"):
+                if u"refScope" in value:
+                    self.scoped_ref_fields[key] = value[u"refScope"]
+                if value.get(u"typeDSL"):
                     self.type_dsl_fields.add(key)
-            if isinstance(value, dict) and value.get("noLinkCheck"):
+            if isinstance(value, dict) and value.get(u"noLinkCheck"):
                 self.nolinkcheck.add(key)
 
-            if isinstance(value, dict) and value.get("mapSubject"):
-                self.idmap[key] = value["mapSubject"]
+            if isinstance(value, dict) and value.get(u"mapSubject"):
+                self.idmap[key] = value[u"mapSubject"]
 
-            if isinstance(value, dict) and value.get("mapPredicate"):
-                self.mapPredicate[key] = value["mapPredicate"]
+            if isinstance(value, dict) and value.get(u"mapPredicate"):
+                self.mapPredicate[key] = value[u"mapPredicate"]
 
-            if isinstance(value, dict) and "@id" in value:
-                self.vocab[key] = value["@id"]
-            elif isinstance(value, str):
+            if isinstance(value, dict) and u"@id" in value:
+                self.vocab[key] = value[u"@id"]
+            elif isinstance(value, basestring):
                 self.vocab[key] = value
 
-        for k, v in list(self.vocab.items()):
-            self.rvocab[self.expand_url(v, "", scoped_id=False)] = k
+        for k, v in self.vocab.items():
+            self.rvocab[self.expand_url(v, u"", scoped_id=False)] = k
 
         _logger.debug("identifiers is %s", self.identifiers)
         _logger.debug("identity_links is %s", self.identity_links)
@@ -256,7 +256,7 @@ class Loader(object):
 
     def resolve_ref(self, ref, base_url=None, checklinks=True):
         # type: (Union[Dict[unicode, Any], unicode], unicode, bool) -> Tuple[Union[List, Dict[unicode, Any], unicode], Dict[unicode, Any]]
-        base_url = base_url or 'file://%s/' % os.path.abspath('.')
+        base_url = base_url or u'file://%s/' % os.path.abspath('.')
 
         obj = None  # type: Dict[unicode, Any]
         inc = False
@@ -265,23 +265,23 @@ class Loader(object):
         # If `ref` is a dict, look for special directives.
         if isinstance(ref, dict):
             obj = ref
-            if "$import" in obj:
+            if u"$import" in obj:
                 if len(obj) == 1:
-                    ref = obj["$import"]
+                    ref = obj[u"$import"]
                     obj = None
                 else:
                     raise ValueError(
-                        "'$import' must be the only field in %s" % (str(obj)))
-            elif "$include" in obj:
+                        u"'$import' must be the only field in %s" % (str(obj)))
+            elif u"$include" in obj:
                 if len(obj) == 1:
-                    ref = obj["$include"]
+                    ref = obj[u"$include"]
                     inc = True
                     obj = None
                 else:
                     raise ValueError(
-                        "'$include' must be the only field in %s" % (str(obj)))
-            elif "$mixin" in obj:
-                ref = obj["$mixin"]
+                        u"'$include' must be the only field in %s" % (str(obj)))
+            elif u"$mixin" in obj:
+                ref = obj[u"$mixin"]
                 mixin = obj
                 obj = None
             else:
@@ -292,10 +292,10 @@ class Loader(object):
                         break
                 if not ref:
                     raise ValueError(
-                        "Object `%s` does not have identifier field in %s" % (obj, self.identifiers))
+                        u"Object `%s` does not have identifier field in %s" % (obj, self.identifiers))
 
-        if not isinstance(ref, str):
-            raise ValueError("Must be string: `%s`" % str(ref))
+        if not isinstance(ref, (str, unicode)):
+            raise ValueError(u"Must be string: `%s`" % str(ref))
 
         url = self.expand_url(ref, base_url, scoped_id=(obj is not None))
 
@@ -314,13 +314,13 @@ class Loader(object):
             doc_url = url
         else:
             # Load structured document
-            doc_url, frg = urllib.parse.urldefrag(url)
+            doc_url, frg = urlparse.urldefrag(url)
             if doc_url in self.idx and (not mixin):
                 # If the base document is in the index, it was already loaded,
                 # so if we didn't find the reference earlier then it must not
                 # exist.
                 raise validate.ValidationException(
-                    "Reference `#%s` not found in file `%s`." % (frg, doc_url))
+                    u"Reference `#%s` not found in file `%s`." % (frg, doc_url))
             doc = self.fetch(doc_url, inject_ids=(not mixin))
 
         # Recursively expand urls and resolve directives
@@ -345,9 +345,9 @@ class Loader(object):
                     "Index contains:\n  %s" % (url, "\n  ".join(self.idx)))
 
         if isinstance(resolved_obj, (dict)):
-            if "$graph" in resolved_obj:
-                metadata = _copy_dict_without_key(resolved_obj, "$graph")
-                return resolved_obj["$graph"], metadata
+            if u"$graph" in resolved_obj:
+                metadata = _copy_dict_without_key(resolved_obj, u"$graph")
+                return resolved_obj[u"$graph"], metadata
             else:
                 return resolved_obj, metadata
         else:
@@ -381,11 +381,11 @@ class Loader(object):
                         ls.append(v)
                     document[idmapField] = ls
 
-    typeDSLregex = re.compile(r"^([^[?]+)(\[\])?(\?)?$")
+    typeDSLregex = re.compile(ur"^([^[?]+)(\[\])?(\?)?$")
 
     def _type_dsl(self, t):
         # type: (Union[unicode, Dict, List]) -> Union[unicode, Dict[unicode, unicode], List[Union[unicode, Dict[unicode, unicode]]]]
-        if not isinstance(t, str):
+        if not isinstance(t, (str, unicode)):
             return t
 
         m = Loader.typeDSLregex.match(t)
@@ -394,10 +394,10 @@ class Loader(object):
         first = m.group(1)
         second = third = None
         if m.group(2):
-            second = {"type": "array",
-                 "items": first}
+            second = {u"type": u"array",
+                 u"items": first}
         if m.group(3):
-            third = ["null", second or first]
+            third = [u"null", second or first]
         return third or second or first
 
     def _resolve_type_dsl(self, document, loader):
@@ -405,7 +405,7 @@ class Loader(object):
         for d in loader.type_dsl_fields:
             if d in document:
                 datum = document[d]
-                if isinstance(datum, str):
+                if isinstance(datum, (str, unicode)):
                     document[d] = self._type_dsl(datum)
                 elif isinstance(datum, list):
                     document[d] = [self._type_dsl(t) for t in datum]
@@ -425,12 +425,12 @@ class Loader(object):
         # Expand identifier field (usually 'id') to resolve scope
         for identifer in loader.identifiers:
             if identifer in document:
-                if isinstance(document[identifer], str):
+                if isinstance(document[identifer], basestring):
                     document[identifer] = loader.expand_url(
                         document[identifer], base_url, scoped_id=True)
                     if (document[identifer] not in loader.idx
                             or isinstance(
-                                loader.idx[document[identifer]], str)):
+                                loader.idx[document[identifer]], basestring)):
                         loader.idx[document[identifer]] = document
                     base_url = document[identifer]
                 else:
@@ -446,7 +446,7 @@ class Loader(object):
         for identifer in loader.identity_links:
             if identifer in document and isinstance(document[identifer], list):
                 for n, v in enumerate(document[identifer]):
-                    if isinstance(document[identifer][n], str):
+                    if isinstance(document[identifer][n], basestring):
                         document[identifer][n] = loader.expand_url(
                             document[identifer][n], base_url, scoped_id=True)
                         if document[identifer][n] not in loader.idx:
@@ -457,7 +457,7 @@ class Loader(object):
         # type: (Dict[unicode, unicode], Loader) -> None
         # Normalize fields which are prefixed or full URIn to vocabulary terms
         for d in document:
-            d2 = loader.expand_url(d, "", scoped_id=False, vocab_term=True)
+            d2 = loader.expand_url(d, u"", scoped_id=False, vocab_term=True)
             if d != d2:
                 document[d2] = document[d]
                 del document[d]
@@ -468,7 +468,7 @@ class Loader(object):
         for d in loader.url_fields:
             if d in document:
                 datum = document[d]
-                if isinstance(datum, str):
+                if isinstance(datum, (str, unicode)):
                     document[d] = loader.expand_url(
                         datum, base_url, scoped_id=False,
                         vocab_term=(d in loader.vocab_fields),
@@ -479,7 +479,7 @@ class Loader(object):
                             url, base_url, scoped_id=False,
                             vocab_term=(d in loader.vocab_fields),
                             scoped_ref=self.scoped_ref_fields.get(d))
-                        if isinstance(url, str)
+                        if isinstance(url, (str, unicode))
                         else url for url in datum]
 
 
@@ -492,9 +492,9 @@ class Loader(object):
 
         if isinstance(document, dict):
             # Handle $import and $include
-            if ('$import' in document or '$include' in document):
+            if (u'$import' in document or u'$include' in document):
                 return self.resolve_ref(document, base_url=file_base, checklinks=checklinks)
-            elif '$mixin' in document:
+            elif u'$mixin' in document:
                 return self.resolve_ref(document, base_url=base_url, checklinks=checklinks)
         elif isinstance(document, list):
             pass
@@ -504,33 +504,33 @@ class Loader(object):
         newctx = None  # type: Loader
         if isinstance(document, dict):
             # Handle $base, $profile, $namespaces, $schemas and $graph
-            if "$base" in document:
-                base_url = document["$base"]
+            if u"$base" in document:
+                base_url = document[u"$base"]
 
-            if "$profile" in document:
+            if u"$profile" in document:
                 if not newctx:
                     newctx = SubLoader(self)
-                prof = self.fetch(document["$profile"])
-                newctx.add_namespaces(document.get("$namespaces", {}))
+                prof = self.fetch(document[u"$profile"])
+                newctx.add_namespaces(document.get(u"$namespaces", {}))
                 newctx.add_schemas(document.get(
-                    "$schemas", []), document["$profile"])
+                    u"$schemas", []), document[u"$profile"])
 
-            if "$namespaces" in document:
+            if u"$namespaces" in document:
                 if not newctx:
                     newctx = SubLoader(self)
-                newctx.add_namespaces(document["$namespaces"])
+                newctx.add_namespaces(document[u"$namespaces"])
 
-            if "$schemas" in document:
+            if u"$schemas" in document:
                 if not newctx:
                     newctx = SubLoader(self)
-                newctx.add_schemas(document["$schemas"], file_base)
+                newctx.add_schemas(document[u"$schemas"], file_base)
 
             if newctx:
                 loader = newctx
 
-            if "$graph" in document:
-                metadata = _copy_dict_without_key(document, "$graph")
-                document = document["$graph"]
+            if u"$graph" in document:
+                metadata = _copy_dict_without_key(document, u"$graph")
+                document = document[u"$graph"]
                 resolved_metadata = loader.resolve_all(metadata, base_url,
                         file_base=file_base, checklinks=False)[0]
                 if isinstance(resolved_metadata, dict):
@@ -549,7 +549,7 @@ class Loader(object):
             self._resolve_uris(document, loader, base_url)
 
             try:
-                for key, val in list(document.items()):
+                for key, val in document.items():
                     document[key], _ = loader.resolve_all(
                         val, base_url, file_base=file_base, checklinks=False)
             except validate.ValidationException as v:
@@ -562,7 +562,7 @@ class Loader(object):
             try:
                 while i < len(document):
                     val = document[i]
-                    if isinstance(val, dict) and ("$import" in val or "$mixin" in val):
+                    if isinstance(val, dict) and (u"$import" in val or u"$mixin" in val):
                         l, _ = loader.resolve_ref(val, base_url=file_base, checklinks=False)
                         if isinstance(l, list):  # never true?
                             del document[i]
@@ -583,13 +583,13 @@ class Loader(object):
 
             for identifer in loader.identity_links:
                 if identifer in metadata:
-                    if isinstance(metadata[identifer], str):
+                    if isinstance(metadata[identifer], (str, unicode)):
                         metadata[identifer] = loader.expand_url(
                             metadata[identifer], base_url, scoped_id=True)
                         loader.idx[metadata[identifer]] = document
 
         if checklinks:
-            document = self.validate_links(document, "")
+            document = self.validate_links(document, u"")
 
         return document, metadata
 
@@ -598,10 +598,10 @@ class Loader(object):
         if url in self.cache:
             return self.cache[url]
 
-        split = urllib.parse.urlsplit(url)
+        split = urlparse.urlsplit(url)
         scheme, path = split.scheme, split.path
 
-        if scheme in ['http', 'https'] and requests:
+        if scheme in [u'http', u'https'] and requests:
             try:
                 resp = requests.get(url)
                 resp.raise_for_status()
@@ -645,17 +645,17 @@ class Loader(object):
 
     def check_file(self, fn):  # type: (unicode) -> bool
         if fn.startswith("file://"):
-            u = urllib.parse.urlsplit(fn)
+            u = urlparse.urlsplit(fn)
             return os.path.exists(u.path)
         else:
             return False
 
-    FieldType = TypeVar('FieldType', str, List[str], Dict[str, Any])
+    FieldType = TypeVar('FieldType', unicode, List[unicode], Dict[unicode, Any])
 
     def validate_scoped(self, field, link, docid):
         # type: (unicode, unicode, unicode) -> unicode
-        split = urllib.parse.urlsplit(docid)
-        sp = split.fragment.split("/")
+        split = urlparse.urlsplit(docid)
+        sp = split.fragment.split(u"/")
         n = self.scoped_ref_fields[field]
         while n > 0 and len(sp) > 0:
             sp.pop()
@@ -663,9 +663,9 @@ class Loader(object):
         tried = []
         while True:
             sp.append(link)
-            url = urllib.parse.urlunsplit((
+            url = urlparse.urlunsplit((
                 split.scheme, split.netloc, split.path, split.query,
-                "/".join(sp)))
+                u"/".join(sp)))
             tried.append(url)
             if url in self.idx:
                 return url
@@ -680,7 +680,7 @@ class Loader(object):
         # type: (unicode, FieldType, unicode) -> FieldType
         if field in self.nolinkcheck:
             return link
-        if isinstance(link, str):
+        if isinstance(link, (str, unicode)):
             if field in self.vocab_fields:
                 if link not in self.vocab and link not in self.idx and link not in self.rvocab:
                     if field in self.scoped_ref_fields:
@@ -715,7 +715,7 @@ class Loader(object):
         if isinstance(d, dict):
             for i in self.identifiers:
                 if i in d:
-                    if isinstance(d[i], str):
+                    if isinstance(d[i], (str, unicode)):
                         return d[i]
         return None
 
@@ -737,9 +737,9 @@ class Loader(object):
             except validate.ValidationException as v:
                 errors.append(v)
             if hasattr(document, "iteritems"):
-                iterator = iter(document.items())
+                iterator = document.iteritems()
             else:
-                iterator = list(document.items())
+                iterator = document.items()
         else:
             return document
 
@@ -753,7 +753,7 @@ class Loader(object):
                         errors.append(validate.ValidationException(
                             "While checking object `%s`\n%s" % (docid2, validate.indent(str(v)))))
                     else:
-                        if isinstance(key, str):
+                        if isinstance(key, basestring):
                             errors.append(validate.ValidationException(
                                 "While checking field `%s`\n%s" % (key, validate.indent(str(v)))))
                         else:
@@ -772,7 +772,7 @@ class Loader(object):
 def _copy_dict_without_key(from_dict, filtered_key):
     # type: (Dict, Any) -> Dict
     new_dict = {}
-    for key, value in list(from_dict.items()):
+    for key, value in from_dict.items():
         if key != filtered_key:
             new_dict[key] = value
     return new_dict

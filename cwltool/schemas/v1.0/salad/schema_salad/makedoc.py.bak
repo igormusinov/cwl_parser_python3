@@ -5,9 +5,9 @@ import os
 import copy
 import re
 import sys
-import io
+import StringIO
 import logging
-import urllib.parse
+import urlparse
 from .aslist import aslist
 from .add_dictlist import add_dictlist
 import re
@@ -30,13 +30,13 @@ def has_types(items):  # type: (Any) -> List[basestring]
         for i in items:
             r.extend(has_types(i))
         return r
-    if isinstance(items, str):
+    if isinstance(items, basestring):
         return [items]
     return []
 
 
 def linkto(item):
-    _, frg = urllib.parse.urldefrag(item)
+    _, frg = urlparse.urldefrag(item)
     return "[%s](#%s)" % (frg, to_id(frg))
 
 
@@ -153,7 +153,7 @@ class RenderType(object):
 
     def __init__(self, toc, j, renderlist, redirects):
         # type: (ToC, List[Dict], str, Dict) -> None
-        self.typedoc = io.StringIO()
+        self.typedoc = StringIO.StringIO()
         self.toc = toc
         self.subs = {}  # type: Dict[str, str]
         self.docParent = {}  # type: Dict[str, List]
@@ -196,8 +196,8 @@ class RenderType(object):
                             if tp not in self.uses:
                                 self.uses[tp] = []
                             if (t["name"], f["name"]) not in self.uses[tp]:
-                                _, frg1 = urllib.parse.urldefrag(t["name"])
-                                _, frg2 = urllib.parse.urldefrag(f["name"])
+                                _, frg1 = urlparse.urldefrag(t["name"])
+                                _, frg2 = urlparse.urldefrag(f["name"])
                                 self.uses[tp].append((frg1, frg2))
                             if tp not in basicTypes and tp not in self.record_refs[t["name"]]:
                                 self.record_refs[t["name"]].append(tp)
@@ -250,7 +250,7 @@ class RenderType(object):
             elif str(tp) in basicTypes:
                 return """<a href="%s">%s</a>""" % (primitiveType, schema.avro_name(str(tp)))
             else:
-                _, frg = urllib.parse.urldefrag(tp)
+                _, frg = urlparse.urldefrag(tp)
                 if frg:
                     tp = frg
                 return """<a href="#%s">%s</a>""" % (to_id(tp), tp)
@@ -305,7 +305,7 @@ class RenderType(object):
                 lines.append(l)
             f["doc"] = "\n".join(lines)
 
-            _, frg = urllib.parse.urldefrag(f["name"])
+            _, frg = urlparse.urldefrag(f["name"])
             num = self.toc.add_entry(depth, frg)
             doc = "## %s %s\n" % (num, frg)
         else:
@@ -440,8 +440,8 @@ def avrold_doc(j, outdoc, renderlist, redirects, brand, brandlink):
             <a class="navbar-brand" href="%s">%s</a>
     """ % (brandlink, brand))
 
-    if "<!--ToC-->" in content:
-        content = content.replace("<!--ToC-->", toc.contents("toc"))
+    if u"<!--ToC-->" in content:
+        content = content.replace(u"<!--ToC-->", toc.contents("toc"))
         outdoc.write("""
                 <ul class="nav navbar-nav">
                   <li><a href="#toc">Table of contents</a></li>
