@@ -112,4 +112,4 @@ def docker_machine_uid():  # type: () -> int
 
 
 if __name__ == '__main__':
-    print(docker_vm_uid())
+    print((docker_vm_uid()))

@@ -144,9 +144,9 @@ def shortname(inputid):
     # type: (Text) -> Text
     d = urlparse(inputid)
     if d.fragment:
-        return d.fragment.split(u"/")[-1]
+        return d.fragment.split("/")[-1]
     else:
-        return d.path.split(u"/")[-1]
+        return d.path.split("/")[-1]
 
 
 def checkRequirements(rec, supportedProcessRequirements):
@@ -156,7 +156,7 @@ def checkRequirements(rec, supportedProcessRequirements):
             for i, r in enumerate(rec["requirements"]):
                 with SourceLine(rec["requirements"], i, UnsupportedRequirement):
                     if r["class"] not in supportedProcessRequirements:
-                        raise UnsupportedRequirement(u"Unsupported requirement %s" % r["class"])
+                        raise UnsupportedRequirement("Unsupported requirement %s" % r["class"])
         for d in rec:
             checkRequirements(rec[d], supportedProcessRequirements)
     if isinstance(rec, list):
@@ -184,7 +184,7 @@ def adjustFilesWithSecondary(rec, op, primary=None):
 
 def stageFiles(pm, stageFunc, ignoreWritable=False):
     # type: (PathMapper, Callable[..., Any], bool) -> None
-    for f, p in pm.items():
+    for f, p in list(pm.items()):
         if not p.staged:
             continue
         if not os.path.exists(os.path.dirname(p.target)):
@@ -211,7 +211,7 @@ def collectFilesAndDirs(obj, out):
         if obj.get("class") in ("File", "Directory"):
             out.append(obj)
         else:
-            for v in obj.values():
+            for v in list(obj.values()):
                 collectFilesAndDirs(v, out)
     if isinstance(obj, list):
         for l in obj:
@@ -258,7 +258,7 @@ def relocateOutputs(outputObj, outdir, output_dirs, action, fs_access):
 def cleanIntermediate(output_dirs):  # type: (Set[Text]) -> None
     for a in output_dirs:
         if os.path.exists(a) and empty_subtree(a):
-            _logger.debug(u"Removing intermediate output directory %s", a)
+            _logger.debug("Removing intermediate output directory %s", a)
             shutil.rmtree(a, True)
 
 
@@ -301,23 +301,23 @@ def checkFormat(actualFile, inputFormats, ontology):
     # type: (Union[Dict[Text, Any], List, Text], Union[List[Text], Text], Graph) -> None
     for af in aslist(actualFile):
         if "format" not in af:
-            raise validate.ValidationException(u"Missing required 'format' for File %s" % af)
+            raise validate.ValidationException("Missing required 'format' for File %s" % af)
         for inpf in aslist(inputFormats):
             if af["format"] == inpf or formatSubclassOf(af["format"], inpf, ontology, set()):
                 return
         raise validate.ValidationException(
-            u"Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
+            "Incompatible file format %s required format(s) %s" % (af["format"], inputFormats))
 
 
 def fillInDefaults(inputs, job):
     # type: (List[Dict[Text, Text]], Dict[Text, Union[Dict[Text, Any], List, Text]]) -> None
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException):
-            if shortname(inp[u"id"]) in job:
+            if shortname(inp["id"]) in job:
                 pass
-            elif shortname(inp[u"id"]) not in job and u"default" in inp:
-                job[shortname(inp[u"id"])] = copy.copy(inp[u"default"])
-            elif shortname(inp[u"id"]) not in job and aslist(inp[u"type"])[0] == u"null":
+            elif shortname(inp["id"]) not in job and "default" in inp:
+                job[shortname(inp["id"])] = copy.copy(inp["default"])
+            elif shortname(inp["id"]) not in job and aslist(inp["type"])[0] == "null":
                 pass
             else:
                 raise WorkflowException("Missing required input parameter `%s`" % shortname(inp["id"]))
@@ -342,9 +342,7 @@ def avroize_type(field_type, name_prefix=""):
     return field_type
 
 
-class Process(object):
-    __metaclass__ = abc.ABCMeta
-
+class Process(object, metaclass=abc.ABCMeta):
     def __init__(self, toolpath_object, **kwargs):
         # type: (Dict[Text, Any], **Any) -> None
         """
@@ -400,7 +398,8 @@ class Process(object):
             av = schema_salad.schema.make_valid_avro(sdtypes, {t["name"]: t for t in avroize_type(sdtypes)}, set())
             for i in av:
                 self.schemaDefs[i["name"]] = i
-            avro.schema.make_avsc_object(av, self.names)
+            #avro.schema.make_avsc_object(av, self.names)
+            avro.schema.SchemaFromJSONData(av, self.names)
 
         # Build record schema from inputs
         self.inputs_record_schema = {
@@ -417,7 +416,7 @@ class Process(object):
                 del c["id"]
 
                 if "type" not in c:
-                    raise validate.ValidationException(u"Missing `type` in parameter `%s`" % c["name"])
+                    raise validate.ValidationException("Missing `type` in parameter `%s`" % c["name"])
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     c["type"] = ["null"] + aslist(c["type"])
@@ -430,18 +429,20 @@ class Process(object):
                     self.outputs_record_schema["fields"].append(c)
 
         try:
-            self.inputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            self.inputs_record_schema = cast(Dict[str, Any], schema_salad.schema.make_valid_avro(self.inputs_record_schema, {}, set()))
+            #avro.schema.make_avsc_object(self.inputs_record_schema, self.names)
+            avro.schema.SchemaFromJSONData(self.inputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing inputs of %s:\n%s" %
+            raise validate.ValidationException("Got error `%s` while processing inputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.inputs_record_schema, indent=4)))
 
         try:
-            self.outputs_record_schema = cast(Dict[unicode, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
-            avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            self.outputs_record_schema = cast(Dict[str, Any], schema_salad.schema.make_valid_avro(self.outputs_record_schema, {}, set()))
+            #avro.schema.make_avsc_object(self.outputs_record_schema, self.names)
+            avro.schema.SchemaFromJSONData(self.outputs_record_schema, self.names)
         except avro.schema.SchemaParseException as e:
-            raise validate.ValidationException(u"Got error `%s` while processing outputs of %s:\n%s" %
+            raise validate.ValidationException("Got error `%s` while processing outputs of %s:\n%s" %
                                                (Text(e), self.tool["id"],
                                                 json.dumps(self.outputs_record_schema, indent=4)))
 
@@ -469,7 +470,7 @@ class Process(object):
 
         # Validate job order
         try:
-            fillInDefaults(self.tool[u"inputs"], builder.job)
+            fillInDefaults(self.tool["inputs"], builder.job)
             normalizeFilesDirs(builder.job)
             validate.validate_ex(self.names.get_name("input_record_schema", ""), builder.job)
         except (validate.ValidationException, WorkflowException) as e:
@@ -611,7 +612,7 @@ class Process(object):
                         avsc_names.get_name(plain_hint["class"], ""),
                         plain_hint, strict=strict)
                 else:
-                    _logger.info(sl.makeError(u"Unknown hint %s" % (r["class"])))
+                    _logger.info(sl.makeError("Unknown hint %s" % (r["class"])))
 
     def get_requirement(self, feature):  # type: (Any) -> Tuple[Any, bool]
         return get_feature(self, feature)
@@ -659,7 +660,7 @@ def uniquename(stem, names=None):  # type: (Text, Set[Text]) -> Text
     u = stem
     while u in names:
         c += 1
-        u = u"%s_%s" % (stem, c)
+        u = "%s_%s" % (stem, c)
     names.add(u)
     return u
 
@@ -691,10 +692,10 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.itervalues():
+    for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(ents.itervalues())
+    r.extend(iter(ents.values()))
     return r
 
 
@@ -732,7 +733,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urljoin):
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.iteritems():
+        for k, v in doc.items():
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):

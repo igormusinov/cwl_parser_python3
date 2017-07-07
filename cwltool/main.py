@@ -452,9 +452,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in cmd_line.items()
+                    k: v for k, v in list(cmd_line.items())
                     if k.startswith(record_name)}
-                for key, value in record_items.items():
+                for key, value in list(record_items.items()):
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -487,7 +487,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
         if toolparser:
-            print("\nOptions for {} ".format(args.workflow))
+            print(("\nOptions for {} ".format(args.workflow)))
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
@@ -641,7 +641,7 @@ def main(argsl=None,  # type: List[str]
             _logger.setLevel(logging.DEBUG)
 
         if args.version:
-            print(versionfunc())
+            print((versionfunc()))
             return 0
         else:
             pass
@@ -762,8 +762,8 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
-            print("Yes!")
-            return
+            #print("Yes!")
+            #return job_order_object
             (out, status) = executor(tool, job_order_object[0],
                                      makeTool=makeTool,
                                      select_resources=selectResources,

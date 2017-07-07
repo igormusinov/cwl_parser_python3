@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import io
 
 import shellescape
 from typing import (Any, Callable, Union, Iterable, MutableMapping,
@@ -395,7 +396,11 @@ def _job_popen(
 
         rcode = sp.wait()
 
-        if isinstance(stdin, file):
+        try:
+            file_types = (file, io.IOBase)
+        except NameError:
+            file_types = (io.IOBase,)
+        if isinstance(stdin, file_types):
             stdin.close()
 
         if stdout is not sys.stderr:

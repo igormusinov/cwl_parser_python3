@@ -133,7 +133,7 @@ def _compare_records(src, sink):
 
     srcfields = _rec_fields(src)
     sinkfields = _rec_fields(sink)
-    for key in sinkfields.keys():
+    for key in list(sinkfields.keys()):
         if (not can_assign_src_to_sink(
                 srcfields.get(key, "null"), sinkfields.get(key, "null"))
             and sinkfields.get(key) is not None):
@@ -281,11 +281,11 @@ class WorkflowJob(object):
                 raise WorkflowException(
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements")
 
-            vfinputs = {shortname(k): v for k, v in inputobj.items()}
+            vfinputs = {shortname(k): v for k, v in list(inputobj.items())}
 
             def postScatterEval(io):
                 # type: (Dict[Text, Any]) -> Dict[Text, Any]
-                shortio = {shortname(k): v for k, v in io.items()}
+                shortio = {shortname(k): v for k, v in list(io.items())}
 
                 def valueFromFunc(k, v):  # type: (Any, Any) -> Any
                     if k in valueFrom:

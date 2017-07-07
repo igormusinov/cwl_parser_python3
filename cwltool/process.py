@@ -692,10 +692,10 @@ def mergedirs(listing):
             ents[e["basename"]] = e
         elif e["class"] == "Directory" and e.get("listing"):
             ents[e["basename"]].setdefault("listing", []).extend(e["listing"])
-    for e in ents.values():
+    for e in list(ents.values()):
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = mergedirs(e["listing"])
-    r.extend(iter(ents.values()))
+    r.extend(iter(list(ents.values())))
     return r
 
 
@@ -733,7 +733,7 @@ def scandeps(base, doc, reffields, urlfields, loadref, urljoin=urljoin):
                 elif doc["class"] == "File" and "secondaryFiles" in doc:
                     r.extend(scandeps(base, doc["secondaryFiles"], reffields, urlfields, loadref, urljoin=urljoin))
 
-        for k, v in doc.items():
+        for k, v in list(doc.items()):
             if k in reffields:
                 for u in aslist(v):
                     if isinstance(u, dict):

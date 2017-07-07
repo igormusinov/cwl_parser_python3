@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from __future__ import print_function
+
 
 import argparse
 import functools
@@ -332,7 +332,7 @@ def add_argument(toolparser, name, inptype, records, description="",
             if len(inptype) == 2:
                 inptype = inptype[1]
             else:
-                _logger.debug(u"Can't make command line argument from %s", inptype)
+                _logger.debug("Can't make command line argument from %s", inptype)
                 return None
 
     ahelp = description.replace("%", "%%")
@@ -377,7 +377,7 @@ def add_argument(toolparser, name, inptype, records, description="",
         required = False
 
     if not atype and not action:
-        _logger.debug(u"Can't make command line argument from %s", inptype)
+        _logger.debug("Can't make command line argument from %s", inptype)
         return None
 
     if inptype != "boolean":
@@ -413,10 +413,10 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
     job_order_object = None
 
     jobloaderctx = {
-        u"path": {u"@type": u"@id"},
-        u"location": {u"@type": u"@id"},
-        u"format": {u"@type": u"@id"},
-        u"id": u"@id"}
+        "path": {"@type": "@id"},
+        "location": {"@type": "@id"},
+        "format": {"@type": "@id"},
+        "id": "@id"}
     jobloaderctx.update(t.metadata.get("$namespaces", {}))
     loader = Loader(jobloaderctx, fetcher_constructor=fetcher_constructor)
 
@@ -452,9 +452,9 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
             for record_name in records:
                 record = {}
                 record_items = {
-                    k: v for k, v in cmd_line.iteritems()
+                    k: v for k, v in cmd_line.items()
                     if k.startswith(record_name)}
-                for key, value in record_items.iteritems():
+                for key, value in record_items.items():
                     record[key[len(record_name) + 1:]] = value
                     del cmd_line[key]
                 cmd_line[str(record_name)] = record
@@ -472,10 +472,10 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
             del cmd_line["job_order"]
 
-            job_order_object.update({namemap[k]: v for k, v in cmd_line.items()})
+            job_order_object.update({namemap[k]: v for k, v in list(cmd_line.items())})
 
             if _logger.isEnabledFor(logging.DEBUG):
-                _logger.debug(u"Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
+                _logger.debug("Parsed job order from command line: %s", json.dumps(job_order_object, indent=4))
         else:
             job_order_object = None
 
@@ -487,7 +487,7 @@ def load_job_order(args, t, stdin, print_input_deps=False, relative_deps=False,
 
     if not job_order_object and len(t.tool["inputs"]) > 0:
         if toolparser:
-            print(u"\nOptions for {} ".format(args.workflow))
+            print("\nOptions for {} ".format(args.workflow))
             toolparser.print_help()
         _logger.error("")
         _logger.error("Input object required, use --help for details")
@@ -546,7 +546,7 @@ def printdeps(obj, document_loader, stdout, relative_deps, uri, basedir=None):
         elif relative_deps == "cwd":
             base = os.getcwd()
         else:
-            raise Exception(u"Unknown relative_deps %s" % relative_deps)
+            raise Exception("Unknown relative_deps %s" % relative_deps)
 
         adjustFileObjs(deps, functools.partial(makeRelative, base))
         adjustDirObjs(deps, functools.partial(makeRelative, base))
@@ -567,9 +567,9 @@ def versionstring():
     # type: () -> Text
     pkg = pkg_resources.require("cwltool")
     if pkg:
-        return u"%s %s" % (sys.argv[0], pkg[0].version)
+        return "%s %s" % (sys.argv[0], pkg[0].version)
     else:
-        return u"%s %s" % (sys.argv[0], "unknown version")
+        return "%s %s" % (sys.argv[0], "unknown version")
 
 
 def main(argsl=None,  # type: List[str]
@@ -644,7 +644,8 @@ def main(argsl=None,  # type: List[str]
             print(versionfunc())
             return 0
         else:
-            _logger.info(versionfunc())
+            pass
+            #_logger.info(versionfunc())
 
         if not args.workflow:
             if os.path.isfile("CWLFile"):
@@ -708,16 +709,16 @@ def main(argsl=None,  # type: List[str]
                 return 0
 
         except (validate.ValidationException) as exc:
-            _logger.error(u"Tool definition failed validation:\n%s", exc,
+            _logger.error("Tool definition failed validation:\n%s", exc,
                           exc_info=args.debug)
             return 1
         except (RuntimeError, WorkflowException) as exc:
-            _logger.error(u"Tool definition failed initialization:\n%s", exc,
+            _logger.error("Tool definition failed initialization:\n%s", exc,
                           exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
-                u"I'm sorry, I couldn't load this CWL file%s",
+                "I'm sorry, I couldn't load this CWL file%s",
                 ", try again with --debug for more information.\nThe error was: "
                 "%s" % exc if not args.debug else ".  The error was:",
                 exc_info=args.debug)
@@ -761,8 +762,8 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
-            print("Yes!")
-            return
+            #print("Yes!")
+            #return job_order_object
             (out, status) = executor(tool, job_order_object[0],
                                      makeTool=makeTool,
                                      select_resources=selectResources,
@@ -779,7 +780,7 @@ def main(argsl=None,  # type: List[str]
                 adjustDirObjs(out, locToPath)
                 adjustFileObjs(out, locToPath)
 
-                if isinstance(out, basestring):
+                if isinstance(out, str):
                     stdout.write(out)
                 else:
                     stdout.write(json.dumps(out, indent=4))
@@ -787,29 +788,29 @@ def main(argsl=None,  # type: List[str]
                 stdout.flush()
 
             if status != "success":
-                _logger.warn(u"Final process status is %s", status)
+                _logger.warn("Final process status is %s", status)
                 return 1
             else:
-                _logger.info(u"Final process status is %s", status)
+                _logger.info("Final process status is %s", status)
                 return 0
 
         except (validate.ValidationException) as exc:
-            _logger.error(u"Input object failed validation:\n%s", exc,
+            _logger.error("Input object failed validation:\n%s", exc,
                           exc_info=args.debug)
             return 1
         except UnsupportedRequirement as exc:
             _logger.error(
-                u"Workflow or tool uses unsupported feature:\n%s", exc,
+                "Workflow or tool uses unsupported feature:\n%s", exc,
                 exc_info=args.debug)
             return 33
         except WorkflowException as exc:
             _logger.error(
-                u"Workflow error, try again with --debug for more "
-                "information:\n%s", strip_dup_lineno(unicode(exc)), exc_info=args.debug)
+                "Workflow error, try again with --debug for more "
+                "information:\n%s", strip_dup_lineno(str(exc)), exc_info=args.debug)
             return 1
         except Exception as exc:
             _logger.error(
-                u"Unhandled error, try again with --debug for more information:\n"
+                "Unhandled error, try again with --debug for more information:\n"
                 "  %s", exc, exc_info=args.debug)
             return 1
 
