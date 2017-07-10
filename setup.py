@@ -10,9 +10,9 @@ README = os.path.join(SETUP_DIR, 'README.rst')
 
 # if python3 runtime and `setup.py install` is called
 if sys.version_info.major == 3 and sys.argv[1] == 'install':
-    print("Aborting installation. CWL Tool doesn't support Python 3 currently.")
-    print("Install using Python 2 pip.")
-    exit(1)
+    print("Not Aborting installation. CWL Tool doesn't support Python 3 currently. Use at your own peril and risk!")
+    #print("Install using Python 2 pip.")
+    #exit(1)
 
 try:
     import gittaggers
@@ -30,8 +30,8 @@ setup(name='cwltool',
       long_description=open(README).read(),
       author='Common workflow language working group',
       author_email='common-workflow-language@googlegroups.com',
-      url="https://github.com/common-workflow-language/cwltool",
-      download_url="https://github.com/common-workflow-language/cwltool",
+      url="https://github.com/igormusinov/cwl_parser_python3",
+      download_url="https://github.com/igormusinov/cwl_parser_python3",
       license='Apache 2.0',
       packages=["cwltool", 'cwltool.tests'],
       package_dir={'cwltool.tests': 'tests'},
