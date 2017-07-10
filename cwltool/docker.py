@@ -23,6 +23,8 @@ def get_image(dockerRequirement, pull_image, dry_run=False):
     for ln in subprocess.check_output(
             ["docker", "images", "--no-trunc", "--all"]).splitlines():
         try:
+            if type(ln) == bytes:
+                ln = ln.decode('utf-8')
             m = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", ln)
             sp = dockerRequirement["dockerImageId"].split(":")
             if len(sp) == 1:
