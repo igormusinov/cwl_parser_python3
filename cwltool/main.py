@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-
+import collections
 import argparse
 import functools
 import json
@@ -231,11 +231,28 @@ def single_job_executor(t,  # type: Process
                     output_callback,
                     **kwargs)
 
+    workflow = {}
+    for step in t.steps:
+
+        for input_param in step.inputs_record_schema['fields']:
+            if input_param.get('source'):
+                workflow[step.id]
     try:
         for r in jobiter:
             if r:
                 if r.outdir:
                     output_dirs.add(r.outdir)
+                if hasattr(r, "command_line"):
+                    workflow[r.name] = {}
+                    workflow[r.name]["command_line"] = r.command_line
+                if hasattr(r, "joborder"):
+                    workflow[r.name]["input_file"] = []
+                    for i, input_param in r.joborder.items():
+                        try:
+                            if input_param.get('class') == "File":
+                                workflow[r.name]["input_file"].append(input_param)
+                        except Exception as e:
+                            continue
                 r.run(**kwargs)
             else:
                 _logger.error("Workflow cannot make any more progress.")
@@ -246,6 +263,8 @@ def single_job_executor(t,  # type: Process
         _logger.exception("Got workflow error")
         raise WorkflowException(Text(e))
 
+    return workflow
+    '''
     if final_output and final_output[0] and finaloutdir:
         final_output[0] = relocateOutputs(final_output[0], finaloutdir,
                                           output_dirs, kwargs.get("move_outputs"),
@@ -258,7 +277,7 @@ def single_job_executor(t,  # type: Process
         return (final_output[0], final_status[0])
     else:
         return (None, "permanentFail")
-
+    '''
 
 class FSAction(argparse.Action):
     objclass = None  # type: Text
@@ -762,14 +781,13 @@ def main(argsl=None,  # type: List[str]
             setattr(args, 'basedir', job_order_object[1])
             del args.workflow
             del args.job_order
-            #print("Yes!")
-            #return job_order_object
-            (out, status) = executor(tool, job_order_object[0],
+            #(out, status) = ...
+            workflow = executor(tool, job_order_object[0],
                                      makeTool=makeTool,
                                      select_resources=selectResources,
                                      make_fs_access=make_fs_access,
                                      **vars(args))
-
+            return workflow
             # This is the workflow output, it needs to be written
             if out is not None:
 
