@@ -233,17 +233,23 @@ def single_job_executor(t,  # type: Process
 
     workflow = {}
     for step in t.steps:
-
+        import re
+        step_name = re.search(r'^.*#(.*)$', step.id)
+        if step_name:
+            step_name = step_name.group(1)
+        workflow[step_name] = {}
+        workflow[step_name]['dependecies'] = []
         for input_param in step.inputs_record_schema['fields']:
             if input_param.get('source'):
-                workflow[step.id]
+                depend_step_name = re.search(r'^.*#(.*)/(.*)$', input_param.get('source'))
+                if depend_step_name:
+                    workflow[step_name]['dependecies'].append(depend_step_name.group(1))
     try:
         for r in jobiter:
             if r:
                 if r.outdir:
                     output_dirs.add(r.outdir)
                 if hasattr(r, "command_line"):
-                    workflow[r.name] = {}
                     workflow[r.name]["command_line"] = r.command_line
                 if hasattr(r, "joborder"):
                     workflow[r.name]["input_file"] = []
